@@ -280,6 +280,8 @@ describe('DashboardPage', () => {
     });
   });
 
+  // NOTE (pmint93): missing test scenario for `embedded` & `tv` kiosk mode
+
   dashboardPageScenario('When in full kiosk mode', (ctx) => {
     ctx.setup(() => {
       locationService.partial({ kiosk: true });

@@ -323,7 +323,7 @@ export class UnthemedDashboardPage extends PureComponent<Props, State> {
     const containerClassNames = classnames(styles.dashboardContainer, {
       'panel-in-fullscreen': viewPanel,
     });
-    const showSubMenu = !editPanel && kioskMode === KioskMode.Off && !this.props.queryParams.editview;
+    const showSubMenu = !editPanel && (kioskMode === KioskMode.Off || kioskMode === KioskMode.Embedded) && !this.props.queryParams.editview;
 
     return (
       <div className={containerClassNames}>

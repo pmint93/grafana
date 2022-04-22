@@ -11,6 +11,9 @@ export function toggleKioskMode() {
       kiosk = true;
       appEvents.emit(AppEvents.alertSuccess, ['Press ESC to exit Kiosk mode']);
       break;
+    case 'embedded':
+      // Embedded kiosk mode is inescapable
+      return;
     case '1':
     case true:
       kiosk = null;
@@ -28,6 +31,8 @@ export function getKioskMode(): KioskMode {
   switch (kiosk) {
     case 'tv':
       return KioskMode.TV;
+    case 'embedded':
+      return KioskMode.Embedded;
     //  legacy support
     case '1':
     case true:
@@ -38,5 +43,10 @@ export function getKioskMode(): KioskMode {
 }
 
 export function exitKioskMode() {
+  const kiosk = locationService.getSearchObject().kiosk;
+  if (kiosk == 'embedded') {
+    // Embedded kiosk mode is inescapable
+    return;
+  }
   locationService.partial({ kiosk: null });
 }
