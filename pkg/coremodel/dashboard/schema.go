@@ -17,6 +17,15 @@ var (
 	currentVersion = thema.SV(0, 0)
 )
 
+// HandoffSchemaVersion is the minimum schemaVersion for dashboards at which the
+// Thema-based dashboard schema is known to be valid.
+//
+// schemaVersion is the original version numbering system for dashboards. If a
+// dashboard is below this schemaVersion, it is necessary for the frontend
+// typescript dashboard migration logic to first run and get it past this
+// number, after which Thema can take over.
+const HandoffSchemaVersion = 36
+
 // Lineage returns the Thema lineage representing Grafana dashboards. The
 // lineage is the canonical specification of the current datasource schema, all
 // prior schema versions, and the mappings that allow migration between schema
@@ -68,19 +77,38 @@ type model struct {
 			Name       string `json:"name"`
 			Type       string `json:"type"`
 			BuiltIn    uint8  `json:"builtIn"`
-			Datasource string `json:"datasource"`
-			Enable     bool   `json:"enable"`
-			Hide       bool   `json:"hide,omitempty"`
-			IconColor  string `json:"iconColor"`
-			RawQuery   string `json:"rawQuery,omitempty"`
-			ShowIn     int    `json:"showIn"`
+			Datasource struct {
+				Type string `json:"type"`
+				Uid  string `json:"uid"`
+			} `json:"datasource"`
+			Enable    bool        `json:"enable"`
+			Hide      bool        `json:"hide,omitempty"`
+			IconColor string      `json:"iconColor"`
+			RawQuery  string      `json:"rawQuery,omitempty"`
+			ShowIn    int         `json:"showIn"`
+			Target    interface{} `json:"target"`
 		} `json:"list"`
 	} `json:"annotations"`
-	Refresh       interface{}   `json:"refresh"` // (bool|string)
-	SchemaVersion int           `json:"schemaVersion"`
-	Panels        []interface{} `json:"panels"`
+	Refresh       interface{} `json:"refresh"` // (bool|string)
+	SchemaVersion int         `json:"schemaVersion"`
+	Links         []struct {
+		Title       string   `json:"title"`
+		Type        string   `json:"type"`
+		Icon        string   `json:"icon,omitempty"`
+		Tooltip     string   `json:"tooltip,omitempty"`
+		Url         string   `json:"url,omitempty"`
+		Tags        []string `json:"tags"`
+		AsDropdown  bool     `json:"asDropdown"`
+		TargetBlank bool     `json:"targetBlank"`
+		IncludeVars bool     `json:"includeVars"`
+		KeepTime    bool     `json:"keepTime"`
+	} `json:"links"`
+	Panels               []interface{} `json:"panels"`
+	FiscalYearStartMonth uint8         `json:"fiscalYearStartMonth"`
+	LiveNow              bool          `json:"liveNow"`
+	WeekStart            string        `json:"weekStart"`
 
-	////
+	// //
 
 	Uid string `json:"uid"`
 	// OrgId   int64  `json:"orgId"`

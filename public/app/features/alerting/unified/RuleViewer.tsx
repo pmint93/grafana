@@ -1,4 +1,7 @@
 import { css } from '@emotion/css';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useObservable } from 'react-use';
+
 import { GrafanaTheme2, LoadingState, PanelData } from '@grafana/data';
 import {
   Alert,
@@ -11,9 +14,9 @@ import {
   withErrorBoundary,
 } from '@grafana/ui';
 import { GrafanaRouteComponentProps } from 'app/core/navigation/types';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useObservable } from 'react-use';
+
 import { AlertQuery } from '../../../types/unified-alerting-dto';
+
 import { AlertLabels } from './components/AlertLabels';
 import { DetailsField } from './components/DetailsField';
 import { RuleViewerLayout, RuleViewerLayoutContent } from './components/rule-viewer/RuleViewerLayout';
@@ -42,9 +45,10 @@ const pageTitle = 'Alerting / View rule';
 
 export function RuleViewer({ match }: RuleViewerProps) {
   const styles = useStyles2(getStyles);
-  const { id, sourceName } = match.params;
+  const { id } = match.params;
   const identifier = ruleId.tryParse(id, true);
-  const { loading, error, result: rule } = useCombinedRule(identifier, sourceName);
+
+  const { loading, error, result: rule } = useCombinedRule(identifier, identifier?.ruleSourceName);
   const runner = useMemo(() => new AlertingQueryRunner(), []);
   const data = useObservable(runner.get());
   const queries2 = useMemo(() => alertRuleToQueries(rule), [rule]);
@@ -83,7 +87,7 @@ export function RuleViewer({ match }: RuleViewerProps) {
     );
   }, []);
 
-  if (!sourceName) {
+  if (!identifier?.ruleSourceName) {
     return (
       <RuleViewerLayout title={pageTitle}>
         <Alert title={errorTitle}>
@@ -93,7 +97,7 @@ export function RuleViewer({ match }: RuleViewerProps) {
     );
   }
 
-  const rulesSource = getRulesSourceByName(sourceName);
+  const rulesSource = getRulesSourceByName(identifier.ruleSourceName);
 
   if (loading) {
     return (
@@ -172,7 +176,7 @@ export function RuleViewer({ match }: RuleViewerProps) {
           </div>
         </div>
         <div>
-          <RuleDetailsMatchingInstances promRule={rule.promRule} />
+          <RuleDetailsMatchingInstances rule={rule} />
         </div>
       </RuleViewerLayoutContent>
       {!isFederatedRule && data && Object.keys(data).length > 0 && (

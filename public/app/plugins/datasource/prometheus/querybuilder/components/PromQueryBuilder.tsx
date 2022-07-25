@@ -1,17 +1,20 @@
 import React, { useCallback } from 'react';
-import { MetricSelect } from './MetricSelect';
-import { PromVisualQuery } from '../types';
+
+import { DataSourceApi, PanelData, SelectableValue } from '@grafana/data';
+import { EditorRow } from '@grafana/experimental';
+
+import { PrometheusDatasource } from '../../datasource';
+import { getMetadataString } from '../../language_provider';
+import { promQueryModeller } from '../PromQueryModeller';
 import { LabelFilters } from '../shared/LabelFilters';
 import { OperationList } from '../shared/OperationList';
-import { EditorRow } from '@grafana/experimental';
-import { PrometheusDatasource } from '../../datasource';
-import { NestedQueryList } from './NestedQueryList';
-import { promQueryModeller } from '../PromQueryModeller';
-import { QueryBuilderLabelFilter } from '../shared/types';
-import { DataSourceApi, PanelData, SelectableValue } from '@grafana/data';
 import { OperationsEditorRow } from '../shared/OperationsEditorRow';
+import { QueryBuilderLabelFilter } from '../shared/types';
+import { PromVisualQuery } from '../types';
+
+import { MetricSelect } from './MetricSelect';
+import { NestedQueryList } from './NestedQueryList';
 import { PromQueryBuilderHints } from './PromQueryBuilderHints';
-import { getMetadataString } from '../../language_provider';
 
 export interface Props {
   query: PromVisualQuery;
@@ -129,6 +132,11 @@ async function getMetrics(
   // don't use it with the visual builder and there is no need to run all the start() setup anyway.
   if (!datasource.languageProvider.metricsMetadata) {
     await datasource.languageProvider.loadMetricsMetadata();
+  }
+
+  // Error handling for when metrics metadata returns as undefined
+  if (!datasource.languageProvider.metricsMetadata) {
+    datasource.languageProvider.metricsMetadata = {};
   }
 
   let metrics;

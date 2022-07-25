@@ -14,6 +14,7 @@ import (
 
 	"github.com/grafana/grafana/pkg/api/dtos"
 	"github.com/grafana/grafana/pkg/components/simplejson"
+	"github.com/grafana/grafana/pkg/infra/usagestats"
 	"github.com/grafana/grafana/pkg/models"
 	acmock "github.com/grafana/grafana/pkg/services/accesscontrol/mock"
 	"github.com/grafana/grafana/pkg/services/login/authinfoservice"
@@ -48,7 +49,11 @@ func TestUserAPIEndpoint_userLoggedIn(t *testing.T) {
 		fakeNow := time.Date(2019, 2, 11, 17, 30, 40, 0, time.UTC)
 		secretsService := secretsManager.SetupTestService(t, database.ProvideSecretsStore(sqlStore))
 		authInfoStore := authinfostore.ProvideAuthInfoStore(sqlStore, secretsService)
-		srv := authinfoservice.ProvideAuthInfoService(&authinfoservice.OSSUserProtectionImpl{}, authInfoStore)
+		srv := authinfoservice.ProvideAuthInfoService(
+			&authinfoservice.OSSUserProtectionImpl{},
+			authInfoStore,
+			&usagestats.UsageStatsMock{},
+		)
 		hs.authInfoService = srv
 
 		createUserCmd := models.CreateUserCommand{
@@ -70,7 +75,8 @@ func TestUserAPIEndpoint_userLoggedIn(t *testing.T) {
 		}
 		idToken := "testidtoken"
 		token = token.WithExtra(map[string]interface{}{"id_token": idToken})
-		query := &models.GetUserByAuthInfoQuery{Login: "loginuser", AuthModule: "test", AuthId: "test"}
+		login := "loginuser"
+		query := &models.GetUserByAuthInfoQuery{AuthModule: "test", AuthId: "test", UserLookupParams: models.UserLookupParams{Login: &login}}
 		cmd := &models.UpdateAuthInfoCommand{
 			UserId:     user.Id,
 			AuthId:     query.AuthId,

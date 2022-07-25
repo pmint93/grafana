@@ -1,11 +1,14 @@
 import { cx } from '@emotion/css';
+import React, { memo } from 'react';
+
 import { OrgRole } from '@grafana/data';
 import { Button, Icon, useStyles2 } from '@grafana/ui';
 import { UserRolePicker } from 'app/core/components/RolePicker/UserRolePicker';
 import { contextSrv } from 'app/core/core';
 import { AccessControlAction, Role, ServiceAccountDTO } from 'app/types';
-import React, { memo } from 'react';
+
 import { OrgRolePicker } from '../admin/OrgRolePicker';
+
 import { getStyles } from './ServiceAccountsListPage';
 
 type ServiceAccountListItemProps = {
@@ -31,7 +34,7 @@ const ServiceAccountListItem = memo(
     const displayRolePicker =
       contextSrv.hasPermission(AccessControlAction.ActionRolesList) &&
       contextSrv.hasPermission(AccessControlAction.ActionUserRolesList);
-    const enableRolePicker = contextSrv.hasPermission(AccessControlAction.OrgUsersRoleUpdate) && canUpdateRole;
+    const enableRolePicker = contextSrv.hasPermission(AccessControlAction.OrgUsersWrite) && canUpdateRole;
 
     return (
       <tr key={serviceAccount.id}>

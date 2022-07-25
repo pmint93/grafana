@@ -1,6 +1,9 @@
 import { css } from '@emotion/css';
+import React from 'react';
+import useAsync from 'react-use/lib/useAsync';
+
 import { QueryEditorProps, SelectableValue } from '@grafana/data';
-import { config } from '@grafana/runtime';
+import { config, reportInteraction } from '@grafana/runtime';
 import {
   Badge,
   FileDropzone,
@@ -12,15 +15,15 @@ import {
   Themeable2,
   withTheme2,
 } from '@grafana/ui';
-import React from 'react';
+
 import { LokiQueryField } from '../../loki/components/LokiQueryField';
+import { LokiDatasource } from '../../loki/datasource';
 import { LokiQuery } from '../../loki/types';
 import { TempoDatasource, TempoQuery, TempoQueryType } from '../datasource';
-import { LokiDatasource } from '../../loki/datasource';
-import useAsync from 'react-use/lib/useAsync';
+
 import NativeSearch from './NativeSearch';
-import { getDS } from './utils';
 import { ServiceGraphSection } from './ServiceGraphSection';
+import { getDS } from './utils';
 
 interface Props extends QueryEditorProps<TempoDatasource, TempoQuery>, Themeable2 {}
 
@@ -64,7 +67,7 @@ class TempoQueryFieldComponent extends React.PureComponent<Props> {
   };
 
   render() {
-    const { query, onChange, datasource } = this.props;
+    const { query, onChange, datasource, app } = this.props;
 
     const logsDatasourceUid = datasource.getLokiSearchDS();
 
@@ -73,11 +76,8 @@ class TempoQueryFieldComponent extends React.PureComponent<Props> {
     const queryTypeOptions: Array<SelectableValue<TempoQueryType>> = [
       { value: 'traceId', label: 'TraceID' },
       { value: 'upload', label: 'JSON file' },
+      { value: 'serviceMap', label: 'Service Graph' },
     ];
-
-    if (config.featureToggles.tempoServiceGraph) {
-      queryTypeOptions.push({ value: 'serviceMap', label: 'Service Graph' });
-    }
 
     if (config.featureToggles.tempoSearch && !datasource?.search?.hide) {
       queryTypeOptions.unshift({ value: 'nativeSearch', label: 'Search - Beta' });
@@ -101,6 +101,13 @@ class TempoQueryFieldComponent extends React.PureComponent<Props> {
               options={queryTypeOptions}
               value={query.queryType}
               onChange={(v) => {
+                reportInteraction('grafana_traces_query_type_changed', {
+                  datasourceType: 'tempo',
+                  app: app ?? '',
+                  newQueryType: v,
+                  previousQueryType: query.queryType ?? '',
+                });
+
                 this.onClearResults();
 
                 onChange({

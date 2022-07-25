@@ -1,11 +1,19 @@
+import React from 'react';
+
 import { DataSourcePluginOptionsEditorProps, SelectableValue } from '@grafana/data';
 import { DataSourceHttpSettings, InlineFormLabel, Select } from '@grafana/ui';
-import React from 'react';
+
 import { AlertManagerDataSourceJsonData, AlertManagerImplementation } from './types';
 
 export type Props = DataSourcePluginOptionsEditorProps<AlertManagerDataSourceJsonData>;
 
 const IMPL_OPTIONS: SelectableValue[] = [
+  {
+    value: AlertManagerImplementation.mimir,
+    icon: 'public/img/alerting/mimir_logo.svg',
+    label: 'Mimir',
+    description: `https://grafana.com/oss/mimir/. An open source, horizontally scalable, highly available, multi-tenant, long-term storage for Prometheus.`,
+  },
   {
     value: AlertManagerImplementation.cortex,
     label: 'Cortex',
@@ -30,7 +38,7 @@ export const ConfigEditor: React.FC<Props> = ({ options, onOptionsChange }) => {
             <Select
               width={40}
               options={IMPL_OPTIONS}
-              value={options.jsonData.implementation || AlertManagerImplementation.cortex}
+              value={options.jsonData.implementation || AlertManagerImplementation.mimir}
               onChange={(value) =>
                 onOptionsChange({
                   ...options,

@@ -1,5 +1,7 @@
-import { getBackendSrv, locationService } from '@grafana/runtime';
 import { createAsyncThunk } from '@reduxjs/toolkit';
+import { isEmpty } from 'lodash';
+
+import { getBackendSrv, locationService } from '@grafana/runtime';
 import {
   AlertmanagerAlert,
   AlertManagerCortexConfig,
@@ -24,7 +26,7 @@ import {
   StateHistoryItem,
 } from 'app/types/unified-alerting';
 import { PromApplication, RulerRulesConfigDTO } from 'app/types/unified-alerting-dto';
-import { isEmpty } from 'lodash';
+
 import {
   addAlertManagers,
   createOrUpdateSilence,
@@ -41,7 +43,7 @@ import {
   updateAlertManagerConfig,
 } from '../api/alertmanager';
 import { fetchAnnotations } from '../api/annotations';
-import { fetchBuildInfo } from '../api/buildInfo';
+import { discoverFeatures } from '../api/buildInfo';
 import { fetchNotifiers } from '../api/grafana';
 import { FetchPromRulesFilter, fetchRules } from '../api/prometheus';
 import {
@@ -229,12 +231,12 @@ export const fetchRulesSourceBuildInfoAction = createAsyncThunk(
         }
 
         const { id, name } = ds;
-        const buildInfo = await fetchBuildInfo(name);
+        const buildInfo = await discoverFeatures(name);
 
         const rulerConfig: RulerDataSourceConfig | undefined = buildInfo.features.rulerApiEnabled
           ? {
               dataSourceName: name,
-              apiVersion: buildInfo.application === PromApplication.Cortex ? 'legacy' : 'config',
+              apiVersion: buildInfo.application === PromApplication.Lotex ? 'legacy' : 'config',
             }
           : undefined;
 
@@ -251,30 +253,34 @@ export const fetchRulesSourceBuildInfoAction = createAsyncThunk(
       const dataSources: AsyncRequestMapSlice<PromBasedDataSource> = (getState() as StoreState).unifiedAlerting
         .dataSources;
       const hasLoaded = Boolean(dataSources[rulesSourceName]?.result);
-      return !hasLoaded;
+      const hasError = Boolean(dataSources[rulesSourceName]?.error);
+
+      return !(hasLoaded || hasError);
     },
   }
 );
 
 export function fetchAllPromAndRulerRulesAction(force = false): ThunkResult<void> {
   return async (dispatch, getStore) => {
-    await dispatch(fetchAllPromBuildInfoAction());
+    return Promise.all(
+      getAllRulesSourceNames().map(async (rulesSourceName) => {
+        await dispatch(fetchRulesSourceBuildInfoAction({ rulesSourceName }));
 
-    const { promRules, rulerRules, dataSources } = getStore().unifiedAlerting;
+        const { promRules, rulerRules, dataSources } = getStore().unifiedAlerting;
+        const dataSourceConfig = dataSources[rulesSourceName].result;
 
-    getAllRulesSourceNames().map((rulesSourceName) => {
-      const dataSourceConfig = dataSources[rulesSourceName].result;
-      if (!dataSourceConfig) {
-        return;
-      }
+        if (!dataSourceConfig) {
+          return;
+        }
 
-      if (force || !promRules[rulesSourceName]?.loading) {
-        dispatch(fetchPromRulesAction({ rulesSourceName }));
-      }
-      if ((force || !rulerRules[rulesSourceName]?.loading) && dataSourceConfig.rulerConfig) {
-        dispatch(fetchRulerRulesAction({ rulesSourceName }));
-      }
-    });
+        if (force || !promRules[rulesSourceName]?.loading) {
+          dispatch(fetchPromRulesAction({ rulesSourceName }));
+        }
+        if ((force || !rulerRules[rulesSourceName]?.loading) && dataSourceConfig.rulerConfig) {
+          dispatch(fetchRulerRulesAction({ rulesSourceName }));
+        }
+      })
+    );
   };
 }
 
@@ -390,10 +396,19 @@ export const saveRuleFormAction = createAsyncThunk(
           if (redirectOnSave) {
             locationService.push(redirectOnSave);
           } else {
+            // if the identifier comes up empty (this happens when Grafana managed rule moves to another namespace or group)
+            const stringifiedIdentifier = ruleId.stringifyIdentifier(identifier);
+            if (!stringifiedIdentifier) {
+              locationService.push('/alerting/list');
+              return;
+            }
             // redirect to edit page
-            const newLocation = `/alerting/${encodeURIComponent(ruleId.stringifyIdentifier(identifier))}/edit`;
+            const newLocation = `/alerting/${encodeURIComponent(stringifiedIdentifier)}/edit`;
             if (locationService.getLocation().pathname !== newLocation) {
               locationService.replace(newLocation);
+            } else {
+              // refresh the details of the current editable rule after saving
+              thunkAPI.dispatch(fetchEditableRuleAction(identifier));
             }
           }
         })()

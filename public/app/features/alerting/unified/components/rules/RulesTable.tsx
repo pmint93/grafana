@@ -1,16 +1,19 @@
+import { css, cx } from '@emotion/css';
+import React, { FC, useMemo } from 'react';
+
 import { GrafanaTheme2 } from '@grafana/data';
 import { useStyles2 } from '@grafana/ui';
-import React, { FC, useMemo } from 'react';
-import { css, cx } from '@emotion/css';
-import { RuleDetails } from './RuleDetails';
-import { isCloudRulesSource } from '../../utils/datasource';
-import { useHasRuler } from '../../hooks/useHasRuler';
 import { CombinedRule } from 'app/types/unified-alerting';
+
+import { useHasRuler } from '../../hooks/useHasRuler';
 import { Annotation } from '../../utils/constants';
-import { RuleState } from './RuleState';
-import { RuleHealth } from './RuleHealth';
 import { DynamicTable, DynamicTableColumnProps, DynamicTableItemProps } from '../DynamicTable';
 import { DynamicTableWithGuidelines } from '../DynamicTableWithGuidelines';
+import { RuleLocation } from '../RuleLocation';
+
+import { RuleDetails } from './RuleDetails';
+import { RuleHealth } from './RuleHealth';
+import { RuleState } from './RuleState';
 
 type RuleTableColumnProps = DynamicTableColumnProps<CombinedRule>;
 type RuleTableItemProps = DynamicTableItemProps<CombinedRule>;
@@ -88,7 +91,7 @@ export const getStyles = (theme: GrafanaTheme2) => ({
 });
 
 function useColumns(showSummaryColumn: boolean, showGroupColumn: boolean) {
-  const hasRuler = useHasRuler();
+  const { hasRuler, rulerRulesLoaded } = useHasRuler();
 
   return useMemo((): RuleTableColumnProps[] => {
     const columns: RuleTableColumnProps[] = [
@@ -100,8 +103,8 @@ function useColumns(showSummaryColumn: boolean, showGroupColumn: boolean) {
           const { namespace } = rule;
           const { rulesSource } = namespace;
           const { promRule, rulerRule } = rule;
-          const isDeleting = !!(hasRuler(rulesSource) && promRule && !rulerRule);
-          const isCreating = !!(hasRuler(rulesSource) && rulerRule && !promRule);
+          const isDeleting = !!(hasRuler(rulesSource) && rulerRulesLoaded(rulesSource) && promRule && !rulerRule);
+          const isCreating = !!(hasRuler(rulesSource) && rulerRulesLoaded(rulesSource) && rulerRule && !promRule);
           return <RuleState rule={rule} isDeleting={isDeleting} isCreating={isCreating} />;
         },
         size: '165px',
@@ -137,12 +140,19 @@ function useColumns(showSummaryColumn: boolean, showGroupColumn: boolean) {
         // eslint-disable-next-line react/display-name
         renderCell: ({ data: rule }) => {
           const { namespace, group } = rule;
-          const { rulesSource } = namespace;
-          return isCloudRulesSource(rulesSource) ? `${namespace.name} > ${group.name}` : namespace.name;
+          // ungrouped rules are rules that are in the "default" group name
+          const isUngrouped = group.name === 'default';
+          const groupName = isUngrouped ? (
+            <RuleLocation namespace={namespace.name} />
+          ) : (
+            <RuleLocation namespace={namespace.name} group={group.name} />
+          );
+
+          return groupName;
         },
         size: 5,
       });
     }
     return columns;
-  }, [hasRuler, showSummaryColumn, showGroupColumn]);
+  }, [hasRuler, rulerRulesLoaded, showSummaryColumn, showGroupColumn]);
 }

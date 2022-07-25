@@ -1,4 +1,5 @@
 import { castArray, isEqual } from 'lodash';
+
 import {
   DataQuery,
   getDataSourceRef,
@@ -8,7 +9,36 @@ import {
   UrlQueryMap,
   UrlQueryValue,
 } from '@grafana/data';
+import { locationService } from '@grafana/runtime';
+import { notifyApp } from 'app/core/actions';
+import { contextSrv } from 'app/core/services/context_srv';
+import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
+import { DashboardModel } from 'app/features/dashboard/state';
+import { store } from 'app/store/store';
 
+import { createErrorNotification } from '../../../core/copy/appNotification';
+import { appEvents } from '../../../core/core';
+import { getBackendSrv } from '../../../core/services/backend_srv';
+import { Graph } from '../../../core/utils/dag';
+import { AppNotification, StoreState, ThunkResult } from '../../../types';
+import { getDatasourceSrv } from '../../plugins/datasource_srv';
+import { getTemplateSrv, TemplateSrv } from '../../templating/template_srv';
+import { variableAdapters } from '../adapters';
+import { ALL_VARIABLE_TEXT, ALL_VARIABLE_VALUE } from '../constants';
+import { cleanEditorState } from '../editor/reducer';
+import {
+  hasCurrent,
+  hasLegacyVariableSupport,
+  hasOptions,
+  hasStandardVariableSupport,
+  isAdHoc,
+  isConstant,
+  isMulti,
+  isQuery,
+} from '../guard';
+import { getAllAffectedPanelIdsForVariableChange } from '../inspect/utils';
+import { cleanPickerState } from '../pickers/OptionsPicker/reducer';
+import { alignCurrentWithMulti } from '../shared/multiOptions';
 import {
   DashboardVariableModel,
   initialVariableModelState,
@@ -27,44 +57,6 @@ import {
   VariableWithMultiSupport,
   VariableWithOptions,
 } from '../types';
-import { AppNotification, StoreState, ThunkResult } from '../../../types';
-import { getIfExistsLastKey, getVariable, getVariablesByKey, getVariablesState } from './selectors';
-import { variableAdapters } from '../adapters';
-import { Graph } from '../../../core/utils/dag';
-import { notifyApp } from 'app/core/actions';
-import {
-  addVariable,
-  changeVariableProp,
-  setCurrentVariableValue,
-  variableStateCompleted,
-  variableStateFailed,
-  variableStateFetching,
-  variableStateNotStarted,
-} from './sharedReducer';
-import { KeyedVariableIdentifier } from './types';
-import { contextSrv } from 'app/core/services/context_srv';
-import { getTemplateSrv, TemplateSrv } from '../../templating/template_srv';
-import { alignCurrentWithMulti } from '../shared/multiOptions';
-import {
-  hasCurrent,
-  hasLegacyVariableSupport,
-  hasOptions,
-  hasStandardVariableSupport,
-  isAdHoc,
-  isConstant,
-  isMulti,
-  isQuery,
-} from '../guard';
-import { getTimeSrv } from 'app/features/dashboard/services/TimeSrv';
-import { DashboardModel } from 'app/features/dashboard/state';
-import { createErrorNotification } from '../../../core/copy/appNotification';
-import {
-  variablesClearTransaction,
-  variablesCompleteTransaction,
-  variablesInitTransaction,
-} from './transactionReducer';
-import { getBackendSrv } from '../../../core/services/backend_srv';
-import { cleanVariables } from './variablesReducer';
 import {
   ensureStringValues,
   ExtendedUrlQueryMap,
@@ -75,15 +67,25 @@ import {
   toStateKey,
   toVariablePayload,
 } from '../utils';
-import { store } from 'app/store/store';
-import { getDatasourceSrv } from '../../plugins/datasource_srv';
-import { cleanEditorState } from '../editor/reducer';
-import { cleanPickerState } from '../pickers/OptionsPicker/reducer';
-import { locationService } from '@grafana/runtime';
-import { appEvents } from '../../../core/core';
-import { getAllAffectedPanelIdsForVariableChange } from '../inspect/utils';
-import { ALL_VARIABLE_TEXT, ALL_VARIABLE_VALUE } from '../constants';
+
 import { toKeyedAction } from './keyedVariablesReducer';
+import { getIfExistsLastKey, getVariable, getVariablesByKey, getVariablesState } from './selectors';
+import {
+  addVariable,
+  changeVariableProp,
+  setCurrentVariableValue,
+  variableStateCompleted,
+  variableStateFailed,
+  variableStateFetching,
+  variableStateNotStarted,
+} from './sharedReducer';
+import {
+  variablesClearTransaction,
+  variablesCompleteTransaction,
+  variablesInitTransaction,
+} from './transactionReducer';
+import { KeyedVariableIdentifier } from './types';
+import { cleanVariables } from './variablesReducer';
 
 // process flow queryVariable
 // thunk => processVariables
@@ -676,7 +678,9 @@ export const templateVarsChangedInUrl =
   async (dispatch, getState) => {
     const update: Array<Promise<any>> = [];
     const dashboard = getState().dashboard.getModel();
-    for (const variable of getVariablesByKey(key, getState())) {
+    const panelIds = new Set<number>();
+    const variables = getVariablesByKey(key, getState());
+    for (const variable of variables) {
       const key = `var-${variable.name}`;
       if (!vars.hasOwnProperty(key)) {
         // key not found quick exit
@@ -702,13 +706,26 @@ export const templateVarsChangedInUrl =
         }
       }
 
+      // for adhoc variables we don't know which panels that will be impacted
+      if (!isAdHoc(variable)) {
+        getAllAffectedPanelIdsForVariableChange(variable.id, variables, dashboard?.panels ?? []).forEach((id) =>
+          panelIds.add(id)
+        );
+      }
+
       const promise = variableAdapters.get(variable.type).setValueFromUrl(variable, value);
       update.push(promise);
     }
 
     if (update.length) {
       await Promise.all(update);
-      events.publish(new VariablesChangedInUrl({ panelIds: [], refreshAll: true }));
+
+      events.publish(
+        new VariablesChangedInUrl({
+          refreshAll: panelIds.size === 0,
+          panelIds: Array.from(panelIds),
+        })
+      );
     }
   };
 

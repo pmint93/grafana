@@ -1,6 +1,7 @@
+import React, { useEffect } from 'react';
+
 import { Input, measureText } from '@grafana/ui';
 import { Props as InputProps } from '@grafana/ui/src/components/Input/Input';
-import React, { useEffect } from 'react';
 export interface Props extends InputProps {
   /** Sets the min-width to a multiple of 8px. Default value is 10*/
   minWidth?: number;
@@ -29,19 +30,17 @@ export const AutoSizeInput = React.forwardRef<HTMLInputElement, Props>((props, r
       }}
       width={inputWidth}
       onBlur={(event) => {
-        if (onCommitChange) {
-          onCommitChange(event);
-        }
         if (onBlur) {
           onBlur(event);
+        } else if (onCommitChange) {
+          onCommitChange(event);
         }
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Enter' && onCommitChange) {
-          onCommitChange(event);
-        }
         if (onKeyDown) {
           onKeyDown(event);
+        } else if (event.key === 'Enter' && onCommitChange) {
+          onCommitChange(event);
         }
       }}
       data-testid={'autosize-input'}

@@ -10,6 +10,7 @@ import {
   VisualQueryModeller,
 } from '../../prometheus/querybuilder/shared/types';
 import { FUNCTIONS } from '../syntax';
+
 import { binaryScalarOperations } from './binaryScalarOperations';
 import { LokiOperationId, LokiOperationOrder, LokiVisualQuery, LokiVisualQueryOperationCategory } from './types';
 
@@ -201,6 +202,7 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
           placeholder: 'Text to find',
           description: 'Find log lines that contains this text',
           minWidth: 20,
+          runQueryOnEnter: true,
         },
       ],
       defaultParams: [''],
@@ -222,6 +224,7 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
           placeholder: 'Text to exclude',
           description: 'Find log lines that does not contain this text',
           minWidth: 26,
+          runQueryOnEnter: true,
         },
       ],
       defaultParams: [''],
@@ -243,6 +246,7 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
           placeholder: 'Pattern to match',
           description: 'Find log lines that match this regex pattern',
           minWidth: 30,
+          runQueryOnEnter: true,
         },
       ],
       defaultParams: [''],
@@ -264,6 +268,7 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
           placeholder: 'Pattern to exclude',
           description: 'Find log lines that does not match this regex pattern',
           minWidth: 30,
+          runQueryOnEnter: true,
         },
       ],
       defaultParams: [''],
@@ -279,10 +284,11 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
       name: 'Label filter expression',
       params: [
         { name: 'Label', type: 'string' },
-        { name: 'Operator', type: 'string', options: ['=', '!=', '>', '<', '>=', '<='] },
+        { name: 'Operator', type: 'string', options: ['=', '!=', ' =~', '!~', '>', '<', '>=', '<='] },
         { name: 'Value', type: 'string' },
       ],
       defaultParams: ['', '=', ''],
+      alternativesKey: 'label filter',
       category: LokiVisualQueryOperationCategory.LabelFilters,
       orderRank: LokiOperationOrder.LabelFilters,
       renderer: labelFilterRenderer,
@@ -294,6 +300,7 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
       name: 'No pipeline errors',
       params: [],
       defaultParams: [],
+      alternativesKey: 'label filter',
       category: LokiVisualQueryOperationCategory.LabelFilters,
       orderRank: LokiOperationOrder.NoErrors,
       renderer: (model, def, innerExpr) => `${innerExpr} | __error__=\`\``,
@@ -305,6 +312,7 @@ export function getOperationDefinitions(): QueryBuilderOperationDef[] {
       name: 'Unwrap',
       params: [{ name: 'Identifier', type: 'string', hideName: true, minWidth: 16, placeholder: 'Label key' }],
       defaultParams: [''],
+      alternativesKey: 'format',
       category: LokiVisualQueryOperationCategory.Formats,
       orderRank: LokiOperationOrder.Unwrap,
       renderer: (op, def, innerExpr) => `${innerExpr} | unwrap ${op.params[0]}`,
@@ -395,9 +403,6 @@ function operationWithRangeVectorRendererAndParam(
 
 function getLineFilterRenderer(operation: string) {
   return function lineFilterRenderer(model: QueryBuilderOperation, def: QueryBuilderOperationDef, innerExpr: string) {
-    if (model.params[0] === '') {
-      return innerExpr;
-    }
     return `${innerExpr} ${operation} \`${model.params[0]}\``;
   };
 }

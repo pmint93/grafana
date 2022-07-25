@@ -1,10 +1,12 @@
-import React, { PureComponent, useRef, useState } from 'react';
-import { Role, ServiceAccountDTO, AccessControlAction } from 'app/types';
 import { css, cx } from '@emotion/css';
+import React, { PureComponent, useRef, useState } from 'react';
+
 import { dateTimeFormat, GrafanaTheme2, OrgRole, TimeZone } from '@grafana/data';
 import { Button, ConfirmButton, ConfirmModal, Input, LegacyInputStatus, useStyles2 } from '@grafana/ui';
-import { ServiceAccountRoleRow } from './ServiceAccountRoleRow';
 import { contextSrv } from 'app/core/core';
+import { Role, ServiceAccountDTO, AccessControlAction } from 'app/types';
+
+import { ServiceAccountRoleRow } from './ServiceAccountRoleRow';
 
 interface Props {
   serviceAccount: ServiceAccountDTO;
@@ -71,7 +73,7 @@ export function ServiceAccountProfile({
     <>
       <div style={{ marginBottom: '10px' }}>
         <a href="org/serviceaccounts" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-          <Button variant="link" icon="backward" />
+          <Button fill="text" icon="backward" />
         </a>
         <h1
           className="page-heading"
